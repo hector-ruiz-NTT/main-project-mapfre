@@ -28,7 +28,7 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install -r requirements.txt
+          pip install -r agent-octain/requirements.txt
 
       - name: Ejecutar script de clasificación y creación de defecto desde XML
         run: |
