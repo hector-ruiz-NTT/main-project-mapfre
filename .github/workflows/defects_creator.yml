@@ -11,12 +11,6 @@ on:
 jobs:
   crear-defecto:
     runs-on: self-hosted
-    
-    defaults:
-      run:
-        shell: pwsh
-        working-directory: agent-octain
-    
     env:
       OCTANE_URL: ${{ secrets.OCTANE_URL }}
       OCTANE_CLIENT_ID: ${{ secrets.OCTANE_CLIENT_ID }}
@@ -29,39 +23,13 @@ jobs:
       AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
 
     steps:
-      - name: Limpiar variables de entorno Node.js
-        run: |
-          Write-Host "🧹 Limpiando variables de entorno conflictivas..."
-          $env:NODE_PATH = $null
-          $env:npm_config_cache = $null
-          Write-Host "✅ Variables de entorno limpiadas"
-      
       - name: Checkout repositorio
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            agent-octain
-          sparse-checkout-cone-mode: false
+        uses: actions/checkout@v3
 
-      - name: Verificar Python
+      - name: Instalar dependencias
         run: |
-          Write-Host "🐍 Verificando instalación de Python..."
-          python --version
-          Write-Host "📍 Ubicación de Python:"
-          where.exe python
-
-      - name: Verificar node
-        run: |
-          Write-Host "📍 Ubicación de Node.js:"
-          where.exe node
-
-      - name: Instalar dependencias Python
-        run: |
-          Write-Host "📦 Instalando dependencias Python..."
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          pip install -r requirements.txt
 
       - name: Ejecutar script de clasificación y creación de defecto desde XML
         run: |
-          Write-Host "🚀 Ejecutando script de creación de defectos..."
           python create_defect_from_xml.py "${{ github.event.inputs.xml_file }}"
