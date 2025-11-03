@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testng-results skipped="0" failed="0" ignored="0" total="1" passed="1">
+  <reporter-output>
+  </reporter-output>
+  <suite name="Default suite" duration-ms="10647" started-at="2022-02-17T09:56:23 CET" finished-at="2022-02-17T09:56:34 CET">
+    <groups>
+    </groups>
+    <test name="Default test" duration-ms="10647" started-at="2022-02-17T09:56:23 CET" finished-at="2022-02-17T09:56:34 CET">
+      <class name="SLI001">
+        <test-method status="PASS" signature="testAuto(java.lang.String)[pri:0, instance:SLI001@396e2f39]" name="testAuto" duration-ms="10571" started-at="2022-02-17T09:56:23 CET" finished-at="2022-02-17T09:56:34 CET">
+          <params>
+            <param index="0">
+              <value>
+                <![CDATA[CHROME]]>
+              </value>
+            </param>
+          </params>
+          <reporter-output>
+          </reporter-output>
+        </test-method> <!-- testAuto -->
+      </class> <!-- SLI001 -->
+    </test> <!-- Default test -->
+  </suite> <!-- Default suite -->
+</testng-results>

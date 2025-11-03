@@ -1,0 +1,75 @@
+name: Push and Analyze
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/*
+
+jobs:
+  build:
+    runs-on: [self-hosted, mar, PRO]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0 
+
+    - name: Log branch and commit
+      run: |
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+        echo "Repository: ${{ github.repository }}"
+        echo "Actor: ${{ github.actor }}"
+        printenv
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v2
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+
+    
+    - name: Set up Maven 3.3.9
+      uses: s4u/setup-maven-action@v1.11.0
+      with:
+        maven-version: '3.3.9'
+
+    - name: Verify Maven installation
+      run: |
+        mvn -version
+      
+    - name: Set up Node.js 16.20.1
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16.20.1'
+
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    - name: Build with Maven
+      run: |
+        echo "Starting Maven build"
+        mvn clean compile
+        echo "Maven build complete"
+
+#    - name: SonarQube Scan
+#      env:
+#        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN || 'default-token' }}
+#      run: |
+#        mvn sonar:sonar -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+#                          -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
+#                          -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+#                          -Dsonar.branch.name=${{ github.ref_name }}
+
+
+    - name: List files in repository
+      run: |
+        echo "Listing files in repository"
+        ls -la

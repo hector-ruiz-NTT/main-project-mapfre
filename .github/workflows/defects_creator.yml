@@ -1,0 +1,67 @@
+name: Agente creador de defectos
+
+on:
+  workflow_dispatch:
+    inputs:
+      xml_file:
+        description: "Ruta del archivo XML de entrada (debe existir en el repositorio)"
+        required: true
+        default: "input"
+
+jobs:
+  crear-defecto:
+    runs-on: self-hosted
+    
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: agent-octain
+    
+    env:
+      OCTANE_URL: ${{ secrets.OCTANE_URL }}
+      OCTANE_CLIENT_ID: ${{ secrets.OCTANE_CLIENT_ID }}
+      OCTANE_CLIENT_SECRET: ${{ secrets.OCTANE_CLIENT_SECRET }}
+      OCTANE_SHARED_SPACE: ${{ secrets.OCTANE_SHARED_SPACE }}
+      OCTANE_WORKSPACE: ${{ secrets.OCTANE_WORKSPACE }}
+      AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+      AZURE_OPENAI_API_VERSION: ${{ secrets.AZURE_OPENAI_API_VERSION }}
+      AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+      AZURE_OPENAI_DEPLOYMENT: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+
+    steps:
+      - name: Limpiar variables de entorno Node.js
+        run: |
+          Write-Host "🧹 Limpiando variables de entorno conflictivas..."
+          $env:NODE_PATH = $null
+          $env:npm_config_cache = $null
+          Write-Host "✅ Variables de entorno limpiadas"
+      
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            agent-octain
+          sparse-checkout-cone-mode: false
+
+      - name: Verificar Python
+        run: |
+          Write-Host "🐍 Verificando instalación de Python..."
+          python --version
+          Write-Host "📍 Ubicación de Python:"
+          where.exe python
+
+      - name: Verificar node
+        run: |
+          Write-Host "📍 Ubicación de Node.js:"
+          where.exe node
+
+      - name: Instalar dependencias Python
+        run: |
+          Write-Host "📦 Instalando dependencias Python..."
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Ejecutar script de clasificación y creación de defecto desde XML
+        run: |
+          Write-Host "🚀 Ejecutando script de creación de defectos..."
+          python create_defect_from_xml.py "${{ github.event.inputs.xml_file }}"

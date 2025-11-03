@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+
+<suite name="REGRESION" parallel="false" thread-count="1">
+<listeners>
+	<listener class-name="mapfre.utils.Listeners.TestListener"/>
+</listeners>
+<test name="PLANTILLA" >
+	<groups>
+		<dependencies>
+			<!--Expecificar a continuación la relación de dependencias entre casos de prueba-->
+<!--			<group name="" depends-on=""/>-->
+		</dependencies>
+	</groups>
+	<classes>
+
+		<!-- <class name="mapfre.Tests.CP00XX_Ejemplo"/> -->
+		<class name="mapfre.Tests.CP001_Login"/>
+
+	</classes>
+</test>
+</suite>

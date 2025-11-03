@@ -1,0 +1,6 @@
+requests>=2.25.1
+urllib3>=1.26.0
+python-dotenv>=0.19.0
+azure-ai-projects~=1.0.0b11
+azure-identity~=1.20.0
+openai>=1.99.6

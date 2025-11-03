@@ -1,0 +1,88 @@
+name: Deploy Library to AWS CodeArtifact
+ 
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+ 
+jobs:
+  deploy:
+    runs-on: [self-hosted, mar, PRO]
+ 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      
+      - name: Set up Maven 3.3.9
+        uses: s4u/setup-maven-action@v1.11.0
+        with:
+          maven-version: '3.3.9'
+ 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Configuración del despliegue
+        run: |2
+            
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          TARGET_BRANCH=""
+          CODEARTIFACT_REPO=""
+
+          if [[ $VERSION == *-SNAPSHOT ]]; then
+            CODEARTIFACT_REPO="snapshot"
+            export TARGET_BRANCH=develop
+          else
+            CODEARTIFACT_REPO="release"
+            export TARGET_BRANCH=master
+          fi
+          
+          echo "Branch: $TARGET_BRANCH"
+
+          echo "CODEARTIFACT_REPO=$CODEARTIFACT_REPO" >> $GITHUB_ENV
+          echo "TARGET_BRANCH=$TARGET_BRANCH" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Repositorio $CODEARTIFACT_REPO"
+          echo "Branch $TARGET_BRANCH"
+          echo "Version $VERSION"
+
+        
+
+      - name: Authenticate to CodeArtifact
+        run: |
+          
+          export CODEARTIFACT_AUTH_TOKEN=$(aws codeartifact get-authorization-token --domain ${{ vars.CODEARTIFACT_DOMAIN }} --domain-owner 975049890204 --region ${{ secrets.AWS_REGION }} --duration-seconds 900 --query authorizationToken --output text)
+          export CODEARTIFACT_REPO_URL=$(aws codeartifact get-repository-endpoint --domain ${{ vars.CODEARTIFACT_DOMAIN }} --repository $CODEARTIFACT_REPO --format maven --query repositoryEndpoint --output text)
+          
+          echo "CODEARTIFACT_REPO_URL=$CODEARTIFACT_REPO_URL" >> $GITHUB_ENV
+          echo "CODEARTIFACT_AUTH_TOKEN=$CODEARTIFACT_AUTH_TOKEN" >> $GITHUB_ENV
+          echo "${{env.CODEARTIFACT_REPO_URL}}"
+      
+
+      - name: Set up Maven
+        run: echo "<?xml version='1.0' encoding='UTF-8'?><settings><profiles><profile><id>codeartifact-profile</id><activation><activeByDefault>true</activeByDefault></activation><repositories><repository><id>snapshot</id><url>${{env.CODEARTIFACT_REPO_URL}}</url><snapshots><enabled>true</enabled></snapshots><releases><enabled>true</enabled></releases></repository></repositories></profile></profiles><servers><server><id>aws-codeartifact</id><username>aws</username><password>${{env.CODEARTIFACT_AUTH_TOKEN}}</password></server></servers></settings>" > ~/.m2/settings.xml               
+      
+ 
+      # - name: Run SonarQube Scan
+      #   run: |
+      #
+      #     mvn sonar:sonar -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+      #                     -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
+      #                     -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+      #                     -Dsonar.branch.name=${{env.TARGET_BRANCH}}
+
+
+      - name: Deploy to CodeArtifact
+        run: |
+          mvn deploy -DaltDeploymentRepository=aws-codeartifact::default::${{env.CODEARTIFACT_REPO_URL}}

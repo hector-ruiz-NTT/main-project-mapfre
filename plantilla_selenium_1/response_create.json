@@ -1,0 +1,20 @@
+{
+  "job":"${jobName}",
+  "nodes":[
+    {
+      "type":"SELENIUM-node-chrome",
+      "number":"1",
+      "target":"chrome"
+    },
+    {
+      "type":"SELENIUM-node-edge",
+      "number":"0",
+      "target":"edge"
+    },
+    {
+      "type":"SELENIUM-node-firefox",
+      "number":"0",
+      "target":"firefox"
+    }
+  ]
+}

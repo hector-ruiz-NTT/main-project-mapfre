@@ -1,0 +1,57 @@
+name: Deploy Code
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, mar, PRO]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN_GITHUB }}
+          
+      - name: Set up JDK 21
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+
+      - name: Set up Maven 3.3.9
+        uses: s4u/setup-maven-action@v1.11.0
+        with:
+          maven-version: '3.3.9'
+      
+      - name: Verify Maven installation
+        run: |
+          mvn -version
+      
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Build & Test
+        run: |
+          git status
+          git checkout ${{ env.head_ref }}
+          mvn clean compile
+        env:
+          MAVEN_OPTS: "-Xmx1024m"
+      
+#      - name: Run SonarQube Scan
+#        run: |     
+#          mvn sonar:sonar -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+#                          -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
+#                          -Dsonar.login=${{ secrets.SONAR_TOKEN }} \
+#                          -Dsonar.branch.name=

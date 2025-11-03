@@ -1,0 +1,66 @@
+name: 'ALM Octane Test Reporter'
+description: 'Upload test results to ALM Octane and register CI pipelines automatically'
+author: 'MAPFRE Tech'
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  octane-url:
+    description: 'ALM Octane server URL (e.g., https://your-server/octane/)'
+    required: true
+  shared-space:
+    description: 'Octane shared space ID'
+    required: true
+  workspace:
+    description: 'Octane workspace ID'
+    required: true
+  client-id:
+    description: 'Octane client ID for authentication'
+    required: true
+  client-secret:
+    description: 'Octane client secret for authentication'
+    required: true
+  test-results-path:
+    description: 'Path to test results file (supports JUnit XML, TestNG XML, JSON formats)'
+    required: true
+  pipeline-name:
+    description: 'Name of the CI pipeline in Octane'
+    required: false
+    default: ${{ github.repository }}
+  github-server-url:
+    description: 'GitHub server URL for CI server registration'
+    required: false
+    default: ${{ github.server_url }}/${{ github.repository }}
+  job-name:
+    description: 'Name of the CI job in Octane'
+    required: false
+    default: ${{ github.job }}
+  build-number:
+    description: 'Build number for this execution'
+    required: false
+    default: ${{ github.run_number }}
+  timeout:
+    description: 'Timeout for Octane API calls in seconds'
+    required: false
+    default: '60'
+  skip-ssl-verify:
+    description: 'Skip SSL certificate verification (not recommended for production)'
+    required: false
+    default: 'false'
+
+outputs:
+  octane-run-id:
+    description: 'Octane test run ID generated'
+  tests-uploaded:
+    description: 'Number of tests uploaded to Octane'
+  ci-server-id:
+    description: 'CI Server ID registered in Octane'
+  pipeline-id:
+    description: 'Pipeline ID registered in Octane'
+  execution-time:
+    description: 'Total execution time in seconds'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
