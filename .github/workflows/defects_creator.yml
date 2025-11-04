@@ -6,7 +6,7 @@ on:
       xml_file:
         description: "Ruta del archivo XML de entrada (debe existir en el repositorio)"
         required: true
-        default: "input"
+        default: "agent-octain/input"
 
 jobs:
   crear-defecto:
