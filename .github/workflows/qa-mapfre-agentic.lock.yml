@@ -899,7 +899,43 @@ jobs:
           echo "Script created successfully"
           ls -la /tmp/gh-aw/playwright-init/
       - name: Configurar Chrome/ChromeDriver para CI (headless)
-        run: "echo \"=== Instalando Chrome y ChromeDriver para Selenium ===\"\n\n# Verificar versión de Chrome pre-instalada en GitHub Actions\ngoogle-chrome --version\nCHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)\necho \"Chrome major version: $CHROME_VERSION\"\n\n# Instalar ChromeDriver compatible usando el método oficial de Google\nCHROMEDRIVER_VERSION=$(curl -s \"https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_VERSION\")\necho \"Installing ChromeDriver version: $CHROMEDRIVER_VERSION\"\n\nwget -q \"https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip\"\nunzip -q chromedriver-linux64.zip\nsudo mv chromedriver-linux64/chromedriver /usr/local/bin/\nsudo chmod +x /usr/local/bin/chromedriver\nrm -rf chromedriver-linux64.zip chromedriver-linux64\n\n# Verificar instalación\nchromedriver --version\nwhich chromedriver\n\n# Configurar variables de entorno para Selenium\necho \"CHROME_HEADLESS=true\" >> $GITHUB_ENV\necho \"webdriver.chrome.driver=/usr/local/bin/chromedriver\" >> $GITHUB_ENV\n\necho \"✅ Chrome y ChromeDriver configurados correctamente para CI\"\n"
+        run: |
+          echo "=== Instalando Chrome y ChromeDriver para Selenium ==="
+          
+          # Actualizar paquetes e instalar dependencias
+          sudo apt-get update
+          sudo apt-get install -y wget curl unzip
+          
+          # Instalar Google Chrome
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          
+          # Verificar versión de Chrome instalada
+          google-chrome --version
+          CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+          echo "Chrome major version: $CHROME_VERSION"
+          
+          # Instalar ChromeDriver compatible usando el método oficial de Google
+          CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_VERSION")
+          echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION"
+          
+          wget -q "https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip"
+          unzip -q chromedriver-linux64.zip
+          sudo mv chromedriver-linux64/chromedriver /usr/local/bin/
+          sudo chmod +x /usr/local/bin/chromedriver
+          rm -rf chromedriver-linux64.zip chromedriver-linux64
+          
+          # Verificar instalación
+          chromedriver --version
+          which chromedriver
+          
+          # Configurar variables de entorno para Selenium
+          echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
+          echo "webdriver.chrome.driver=/usr/local/bin/chromedriver" >> $GITHUB_ENV
+          
+          echo "✅ Chrome y ChromeDriver configurados correctamente para CI"
 
       - name: Create gh-aw temp directory
         run: |
