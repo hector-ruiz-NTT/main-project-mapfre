@@ -32,4 +32,4 @@ jobs:
 
       - name: Ejecutar script de clasificación y creación de defecto desde XML
         run: |
-          python create_defect_from_xml.py "${{ github.event.inputs.xml_file }}"
+          python agent-octain/create_defect_from_xml.py "${{ github.event.inputs.xml_file }}"
