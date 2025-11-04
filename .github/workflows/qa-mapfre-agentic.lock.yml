@@ -899,7 +899,143 @@ jobs:
           echo "Script created successfully"
           ls -la /tmp/gh-aw/playwright-init/
       - name: Configurar Chrome/ChromeDriver para CI (headless)
-        run: "echo \"=== Instalando Chrome y ChromeDriver para Selenium ===\"\n\n# Verificar versión de Chrome pre-instalada en GitHub Actions\ngoogle-chrome --version\nCHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)\necho \"Chrome major version: $CHROME_VERSION\"\n\n# Instalar ChromeDriver compatible usando el método oficial de Google\nCHROMEDRIVER_VERSION=$(curl -s \"https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_VERSION\")\necho \"Installing ChromeDriver version: $CHROMEDRIVER_VERSION\"\n\nwget -q \"https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip\"\nunzip -q chromedriver-linux64.zip\nsudo mv chromedriver-linux64/chromedriver /usr/local/bin/\nsudo chmod +x /usr/local/bin/chromedriver\nrm -rf chromedriver-linux64.zip chromedriver-linux64\n\n# Verificar instalación\nchromedriver --version\nwhich chromedriver\n\n# Configurar variables de entorno para Selenium\necho \"CHROME_HEADLESS=true\" >> $GITHUB_ENV\necho \"webdriver.chrome.driver=/usr/local/bin/chromedriver\" >> $GITHUB_ENV\n\necho \"✅ Chrome y ChromeDriver configurados correctamente para CI\"\n"
+        run: |
+          set -e  # Detener en caso de error
+          echo "=== Configurando Chrome y ChromeDriver para Self-Hosted Runner ==="
+          
+          # Detectar si estamos en un runner self-hosted
+          echo "🏠 Runner self-hosted detectado - Verificando herramientas existentes..."
+          
+          # Verificar si Chrome ya está instalado
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "✅ Chrome ya está instalado:"
+            google-chrome --version
+            CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+          else
+            echo "📦 Chrome no encontrado - Intentando instalación..."
+            # Verificar si tenemos permisos sudo y apt
+            if command -v apt-get >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+              # Solo instalar si no tenemos las herramientas básicas
+              sudo apt-get install -y --no-install-recommends wget curl unzip 2>/dev/null || true
+              
+              # Descargar e instalar Chrome
+              wget -q --timeout=30 --tries=2 -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+              sudo dpkg -i /tmp/google-chrome.deb 2>/dev/null || sudo apt-get install -f -y --no-install-recommends
+              rm -f /tmp/google-chrome.deb
+              
+              google-chrome --version
+              CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+            else
+              echo "❌ No se pueden instalar herramientas en este runner self-hosted"
+              echo "⚠️ Chrome debe estar pre-instalado en el runner"
+              exit 1
+            fi
+          fi
+          
+          echo "Chrome major version: $CHROME_VERSION"
+          
+          # Verificar si ChromeDriver ya está instalado y es compatible
+          if command -v chromedriver >/dev/null 2>&1; then
+            EXISTING_CHROMEDRIVER_VERSION=$(chromedriver --version | awk '{print $2}' | cut -d'.' -f1)
+            echo "🔍 ChromeDriver existente: versión major $EXISTING_CHROMEDRIVER_VERSION"
+            
+            if [ "$EXISTING_CHROMEDRIVER_VERSION" = "$CHROME_VERSION" ]; then
+              echo "✅ ChromeDriver ya es compatible con Chrome $CHROME_VERSION"
+              CHROMEDRIVER_PATH=$(which chromedriver)
+            else
+              echo "⚠️ ChromeDriver ($EXISTING_CHROMEDRIVER_VERSION) no es compatible con Chrome ($CHROME_VERSION)"
+              # Instalar versión compatible
+              echo "📥 Descargando ChromeDriver compatible..."
+              
+              # Usar versiones conocidas para acelerar
+              if [ "$CHROME_VERSION" = "130" ]; then
+                CHROMEDRIVER_VERSION="130.0.6723.69"
+              elif [ "$CHROME_VERSION" = "129" ]; then
+                CHROMEDRIVER_VERSION="129.0.6668.89"
+              elif [ "$CHROME_VERSION" = "131" ]; then
+                CHROMEDRIVER_VERSION="131.0.6778.85"
+              else
+                # Fallback dinámico
+                CHROMEDRIVER_VERSION=$(curl -s --max-time 10 "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_VERSION" || echo "130.0.6723.69")
+              fi
+              
+              echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION"
+              
+              # Descargar a directorio temporal local si no tenemos permisos sudo
+              INSTALL_DIR="/usr/local/bin"
+              if ! sudo -n true 2>/dev/null; then
+                INSTALL_DIR="$HOME/bin"
+                mkdir -p "$INSTALL_DIR"
+                echo "📁 Instalando ChromeDriver en directorio de usuario: $INSTALL_DIR"
+              fi
+              
+              wget -q --timeout=30 --tries=2 "https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip"
+              unzip -q chromedriver-linux64.zip
+              
+              if [ "$INSTALL_DIR" = "/usr/local/bin" ]; then
+                sudo mv chromedriver-linux64/chromedriver /usr/local/bin/
+                sudo chmod +x /usr/local/bin/chromedriver
+              else
+                mv chromedriver-linux64/chromedriver "$INSTALL_DIR/"
+                chmod +x "$INSTALL_DIR/chromedriver"
+                # Añadir al PATH para esta sesión
+                echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> $GITHUB_ENV
+                export PATH="$INSTALL_DIR:$PATH"
+              fi
+              
+              rm -rf chromedriver-linux64.zip chromedriver-linux64
+              CHROMEDRIVER_PATH="$INSTALL_DIR/chromedriver"
+            fi
+          else
+            echo "📥 ChromeDriver no encontrado - Instalando..."
+            # Similar lógica de instalación
+            if [ "$CHROME_VERSION" = "130" ]; then
+              CHROMEDRIVER_VERSION="130.0.6723.69"
+            elif [ "$CHROME_VERSION" = "129" ]; then
+              CHROMEDRIVER_VERSION="129.0.6668.89"
+            elif [ "$CHROME_VERSION" = "131" ]; then
+              CHROMEDRIVER_VERSION="131.0.6778.85"
+            else
+              CHROMEDRIVER_VERSION=$(curl -s --max-time 10 "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_VERSION" || echo "130.0.6723.69")
+            fi
+            
+            echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION"
+            
+            INSTALL_DIR="/usr/local/bin"
+            if ! sudo -n true 2>/dev/null; then
+              INSTALL_DIR="$HOME/bin"
+              mkdir -p "$INSTALL_DIR"
+            fi
+            
+            wget -q --timeout=30 --tries=2 "https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip"
+            unzip -q chromedriver-linux64.zip
+            
+            if [ "$INSTALL_DIR" = "/usr/local/bin" ]; then
+              sudo mv chromedriver-linux64/chromedriver /usr/local/bin/
+              sudo chmod +x /usr/local/bin/chromedriver
+            else
+              mv chromedriver-linux64/chromedriver "$INSTALL_DIR/"
+              chmod +x "$INSTALL_DIR/chromedriver"
+              echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> $GITHUB_ENV
+              export PATH="$INSTALL_DIR:$PATH"
+            fi
+            
+            rm -rf chromedriver-linux64.zip chromedriver-linux64
+            CHROMEDRIVER_PATH="$INSTALL_DIR/chromedriver"
+          fi
+          
+          # Verificar instalaciones finales
+          echo "✅ Verificando configuración final..."
+          google-chrome --version
+          chromedriver --version
+          echo "ChromeDriver path: $(which chromedriver)"
+          
+          # Configurar variables de entorno para Selenium
+          echo "🔧 Configurando variables de entorno..."
+          echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
+          echo "webdriver.chrome.driver=$(which chromedriver)" >> $GITHUB_ENV
+          
+          echo "✅ Chrome y ChromeDriver configurados para self-hosted runner"
 
       - name: Create gh-aw temp directory
         run: |
