@@ -898,8 +898,148 @@ jobs:
           echo 'KGZ1bmN0aW9uKCkgewogIGNvbnNvbGUubG9nKCJJbml0IHNjcmlwdCBydW5uaW5nIik7CiAgaWYgKHdpbmRvdy5uYXZpZ2F0b3IgJiYgd2luZG93Lm5hdmlnYXRvci5zZXJ2aWNlV29ya2VyKSB7CiAgICB3aW5kb3cubmF2aWdhdG9yLnNlcnZpY2VXb3JrZXIuZ2V0UmVnaXN0cmF0aW9ucygpLnRoZW4oZnVuY3Rpb24ocmVnaXN0cmF0aW9ucykgewogICAgICByZWdpc3RyYXRpb25zLmZvckVhY2goZnVuY3Rpb24ocmVnKSB7IHJlZy51bnJlZ2lzdGVyKCk7IH0pOwogICAgfSk7CiAgfQogIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShuYXZpZ2F0b3IsICJ3ZWJkcml2ZXIiLCB7IGdldDogKCkgPT4gZmFsc2UgfSk7CiAgY29uc29sZS5sb2coIkluaXQgc2NyaXB0IGNvbXBsZXRlIik7Cn0pKCk7Cg==' | base64 -d > /tmp/gh-aw/playwright-init/disable-blockers.js
           echo "Script created successfully"
           ls -la /tmp/gh-aw/playwright-init/
-      - name: Configurar Chrome/ChromeDriver para CI (headless)
-        run: "echo \"=== Instalando Chrome y ChromeDriver para Selenium ===\"\n\n# Verificar versión de Chrome pre-instalada en GitHub Actions\ngoogle-chrome --version\nCHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)\necho \"Chrome major version: $CHROME_VERSION\"\n\n# Instalar ChromeDriver compatible usando el método oficial de Google\nCHROMEDRIVER_VERSION=$(curl -s \"https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_VERSION\")\necho \"Installing ChromeDriver version: $CHROMEDRIVER_VERSION\"\n\nwget -q \"https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip\"\nunzip -q chromedriver-linux64.zip\nsudo mv chromedriver-linux64/chromedriver /usr/local/bin/\nsudo chmod +x /usr/local/bin/chromedriver\nrm -rf chromedriver-linux64.zip chromedriver-linux64\n\n# Verificar instalación\nchromedriver --version\nwhich chromedriver\n\n# Configurar variables de entorno para Selenium\necho \"CHROME_HEADLESS=true\" >> $GITHUB_ENV\necho \"webdriver.chrome.driver=/usr/local/bin/chromedriver\" >> $GITHUB_ENV\n\necho \"✅ Chrome y ChromeDriver configurados correctamente para CI\"\n"
+      - name: Configurar Chrome/ChromeDriver para macOS (headless)
+        run: |
+          echo "=== Configurando Chrome y ChromeDriver para macOS Self-Hosted Runner ==="
+          
+          # Detectar sistema operativo
+          OS_TYPE=$(uname -s)
+          echo "🖥️ Sistema operativo detectado: $OS_TYPE"
+          
+          if [[ "$OS_TYPE" == "Darwin" ]]; then
+            echo "🍎 Runner macOS detectado - Verificando herramientas existentes..."
+            
+            # Verificar si Chrome está instalado en macOS
+            CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            if [ -f "$CHROME_PATH" ]; then
+              echo "✅ Chrome encontrado en macOS"
+              
+              # Crear symlink si no existe el comando global
+              if ! command -v google-chrome >/dev/null 2>&1; then
+                echo "🔗 Creando enlace simbólico para comando google-chrome..."
+                sudo ln -sf "$CHROME_PATH" /usr/local/bin/google-chrome
+              fi
+              
+              # Verificar versión
+              google-chrome --version
+              CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+              echo "Chrome major version: $CHROME_VERSION"
+              
+            else
+              echo "❌ Chrome no encontrado en macOS"
+              echo "💡 Para instalar Chrome:"
+              echo "   brew install --cask google-chrome"
+              echo "🚀 CONTINUANDO con configuración básica..."
+              echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
+              echo "webdriver.chrome.driver=/usr/local/bin/chromedriver" >> $GITHUB_ENV
+              echo "SELENIUM_BROWSER_MISSING=true" >> $GITHUB_ENV
+              exit 0
+            fi
+            
+            # Verificar ChromeDriver
+            if command -v chromedriver >/dev/null 2>&1; then
+              EXISTING_CHROMEDRIVER_VERSION=$(chromedriver --version | awk '{print $2}' | cut -d'.' -f1)
+              echo "🔍 ChromeDriver existente: versión major $EXISTING_CHROMEDRIVER_VERSION"
+              
+              if [ "$EXISTING_CHROMEDRIVER_VERSION" = "$CHROME_VERSION" ]; then
+                echo "✅ ChromeDriver ya es compatible con Chrome $CHROME_VERSION"
+              else
+                echo "⚠️ ChromeDriver ($EXISTING_CHROMEDRIVER_VERSION) no es compatible con Chrome ($CHROME_VERSION)"
+                echo "💡 Para actualizar ChromeDriver:"
+                echo "   brew upgrade --cask chromedriver"
+              fi
+            else
+              echo "📦 ChromeDriver no encontrado"
+              echo "💡 Para instalar ChromeDriver:"
+              echo "   brew install --cask chromedriver"
+              echo "   xattr -d com.apple.quarantine /usr/local/bin/chromedriver"
+              echo "🚀 CONTINUANDO con configuración básica..."
+            fi
+            
+            # Configurar variables de entorno para macOS
+            echo "🔧 Configurando variables de entorno para macOS..."
+            echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
+            echo "webdriver.chrome.driver=$(which chromedriver 2>/dev/null || echo '/usr/local/bin/chromedriver')" >> $GITHUB_ENV
+            
+            # Verificar configuración final
+            echo "✅ Verificando configuración final..."
+            if command -v google-chrome >/dev/null 2>&1; then
+              google-chrome --version
+            fi
+            if command -v chromedriver >/dev/null 2>&1; then
+              chromedriver --version
+              echo "ChromeDriver path: $(which chromedriver)"
+            fi
+            
+            echo "✅ Chrome y ChromeDriver configurados para macOS"
+            
+          else
+            echo "🐧 Sistema Linux detectado - Usando configuración Linux original..."
+            
+            # Verificar si Chrome ya está instalado
+            if command -v google-chrome >/dev/null 2>&1; then
+              echo "✅ Chrome ya está instalado:"
+              google-chrome --version
+              CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+            else
+              echo "📦 Chrome no encontrado - Intentando instalación..."
+              # Verificar herramientas de descarga
+              if ! command -v wget >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1; then
+                echo "❌ No hay herramientas de descarga disponibles"
+                echo "🚀 CONTINUANDO con configuración básica..."
+                echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
+                echo "webdriver.chrome.driver=/usr/local/bin/chromedriver" >> $GITHUB_ENV
+                exit 0
+              fi
+              
+              # Intentar instalación en Linux
+              if sudo -n true 2>/dev/null; then
+                wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+                sudo dpkg -i /tmp/google-chrome.deb || sudo apt-get install -f -y
+                rm /tmp/google-chrome.deb
+                
+                google-chrome --version
+                CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
+              else
+                echo "❌ No hay permisos sudo para instalar Chrome"
+                echo "🚀 CONTINUANDO con configuración básica..."
+                echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
+                echo "webdriver.chrome.driver=/usr/local/bin/chromedriver" >> $GITHUB_ENV
+                exit 0
+              fi
+            fi
+            
+            echo "Chrome major version: $CHROME_VERSION"
+            
+            # Instalar ChromeDriver para Linux
+            if [ "$CHROME_VERSION" = "130" ]; then
+              CHROMEDRIVER_VERSION="130.0.6723.69"
+            elif [ "$CHROME_VERSION" = "131" ]; then
+              CHROMEDRIVER_VERSION="131.0.6778.85"
+            elif [ "$CHROME_VERSION" = "129" ]; then
+              CHROMEDRIVER_VERSION="129.0.6668.89"
+            else
+              CHROMEDRIVER_VERSION=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/LATEST_RELEASE_$CHROME_VERSION" || echo "130.0.6723.69")
+            fi
+            
+            echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION"
+            
+            wget -q "https://storage.googleapis.com/chrome-for-testing-public/$CHROMEDRIVER_VERSION/linux64/chromedriver-linux64.zip"
+            unzip -q chromedriver-linux64.zip
+            sudo mv chromedriver-linux64/chromedriver /usr/local/bin/
+            sudo chmod +x /usr/local/bin/chromedriver
+            rm -rf chromedriver-linux64.zip chromedriver-linux64
+            
+            # Verificar instalación Linux
+            chromedriver --version
+            which chromedriver
+            
+            # Configurar variables de entorno para Linux
+            echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
+            echo "webdriver.chrome.driver=/usr/local/bin/chromedriver" >> $GITHUB_ENV
+            
+            echo "✅ Chrome y ChromeDriver configurados para Linux"
+          fi
 
       - name: Create gh-aw temp directory
         run: |
