@@ -887,7 +887,7 @@ jobs:
           node-version: '24'
       - name: Preparar entorno Playwright (browser automation)
         run: |
-          echo "Node version:" && node -v || true
+          echo "Node version:" node -v || true
           mkdir -p temp-agent && cd temp-agent
           npm init -y
           npm install playwright@latest --no-audit --no-fund
