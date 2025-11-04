@@ -914,16 +914,20 @@ jobs:
             if [ -f "$CHROME_PATH" ]; then
               echo "✅ Chrome encontrado en macOS"
               
-              # Crear symlink si no existe el comando global
-              if ! command -v google-chrome >/dev/null 2>&1; then
-                echo "🔗 Creando enlace simbólico para comando google-chrome..."
-                sudo ln -sf "$CHROME_PATH" /usr/local/bin/google-chrome
-              fi
+              # Verificar versión directamente con path completo (sin wrapper)
+              echo "� Obteniendo versión de Chrome usando path directo..."
+              CHROME_VERSION=$("$CHROME_PATH" --version 2>/dev/null | awk '{print $3}' | cut -d'.' -f1)
               
-              # Verificar versión
-              google-chrome --version
-              CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | cut -d'.' -f1)
-              echo "Chrome major version: $CHROME_VERSION"
+              if [ -n "$CHROME_VERSION" ]; then
+                echo "✅ Chrome major version: $CHROME_VERSION"
+                # Configurar variable para usar path completo en lugar de comando global
+                echo "CHROME_EXECUTABLE_PATH=$CHROME_PATH" >> $GITHUB_ENV
+              else
+                echo "⚠️ No se pudo obtener la versión de Chrome, intentando configuración alternativa..."
+                # Usar configuración básica sin versión específica
+                CHROME_VERSION="130" # Versión por defecto
+                echo "CHROME_EXECUTABLE_PATH=$CHROME_PATH" >> $GITHUB_ENV
+              fi
               
             else
               echo "❌ Chrome no encontrado en macOS"
@@ -959,16 +963,21 @@ jobs:
             # Configurar variables de entorno para macOS
             echo "🔧 Configurando variables de entorno para macOS..."
             echo "CHROME_HEADLESS=true" >> $GITHUB_ENV
-            echo "webdriver.chrome.driver=$(which chromedriver 2>/dev/null || echo '/usr/local/bin/chromedriver')" >> $GITHUB_ENV
+            
+            # Configurar ChromeDriver path
+            CHROMEDRIVER_PATH=$(which chromedriver 2>/dev/null || echo '/usr/local/bin/chromedriver')
+            echo "webdriver.chrome.driver=$CHROMEDRIVER_PATH" >> $GITHUB_ENV
             
             # Verificar configuración final
             echo "✅ Verificando configuración final..."
-            if command -v google-chrome >/dev/null 2>&1; then
-              google-chrome --version
-            fi
+            echo "Chrome path configurado: $CHROME_PATH"
+            echo "Chrome executable variable: \$CHROME_EXECUTABLE_PATH"
+            
             if command -v chromedriver >/dev/null 2>&1; then
-              chromedriver --version
+              chromedriver --version 2>/dev/null || echo "ChromeDriver disponible pero no puede mostrar versión"
               echo "ChromeDriver path: $(which chromedriver)"
+            else
+              echo "⚠️ ChromeDriver no encontrado en PATH, usando path por defecto: $CHROMEDRIVER_PATH"
             fi
             
             echo "✅ Chrome y ChromeDriver configurados para macOS"
